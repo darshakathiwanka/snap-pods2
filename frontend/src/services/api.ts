@@ -76,6 +76,17 @@ export const filesApi = {
     api.delete(`/api/files/project/${projectId}/delete`, {
       params: { file_path: filePath },
     }),
+  rename: (projectId: number, oldPath: string, newPath: string) =>
+    api.post(`/api/files/project/${projectId}/rename`, null, {
+      params: { old_path: oldPath, new_path: newPath },
+    }),
+  upload: (projectId: number, filePath: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/api/files/project/${projectId}/upload?file_path=${encodeURIComponent(filePath)}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const containersApi = {
@@ -87,9 +98,9 @@ export const containersApi = {
     api.post(`/api/containers/${containerId}/stop`),
   start: (containerId: string) =>
     api.post(`/api/containers/${containerId}/start`),
-  logs: (containerId: string, tail: number = 100) =>
+  logs: (containerId: string, tail: number = 100, follow: boolean = false) =>
     api.get<{ logs: string }>(`/api/containers/${containerId}/logs`, {
-      params: { tail },
+      params: { tail, follow },
     }),
   deploy: (projectId: number) =>
     api.post('/api/containers/deploy', { project_id: projectId }),

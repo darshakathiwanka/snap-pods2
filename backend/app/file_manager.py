@@ -167,6 +167,52 @@ class FileManager:
             print(f"Error getting file info: {e}")
             return None
 
+    def rename_file(self, project_name: str, old_path: str, new_path: str) -> bool:
+        """Rename a file or directory"""
+        project_path = self.get_project_path(project_name)
+        old_full_path = project_path / old_path
+        new_full_path = project_path / new_path
+        
+        # Security checks
+        try:
+            old_full_path.resolve().relative_to(project_path.resolve())
+            new_full_path.resolve().relative_to(project_path.resolve())
+        except ValueError:
+            return False
+        
+        if not old_full_path.exists():
+            return False
+        
+        if new_full_path.exists():
+            return False  # Target already exists
+        
+        try:
+            old_full_path.rename(new_full_path)
+            return True
+        except Exception as e:
+            print(f"Error renaming file: {e}")
+            return False
+
+    def upload_file(self, project_name: str, file_path: str, file_content: bytes) -> bool:
+        """Upload a file (write binary content)"""
+        project_path = self.get_project_path(project_name)
+        full_path = project_path / file_path
+        
+        # Security check
+        try:
+            full_path.resolve().relative_to(project_path.resolve())
+        except ValueError:
+            return False
+        
+        try:
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(full_path, 'wb') as f:
+                f.write(file_content)
+            return True
+        except Exception as e:
+            print(f"Error uploading file: {e}")
+            return False
+
 
 file_manager = FileManager()
 

@@ -45,9 +45,9 @@ def start_container(container_id: str):
 
 
 @router.get("/{container_id}/logs")
-def get_container_logs(container_id: str, tail: int = 100):
+def get_container_logs(container_id: str, tail: int = 100, follow: bool = False):
     """Get container logs"""
-    logs = docker_client.get_container_logs(container_id, tail=tail, follow=False)
+    logs = docker_client.get_container_logs(container_id, tail=tail, follow=follow)
     if logs is None:
         raise HTTPException(status_code=404, detail="Container not found")
     

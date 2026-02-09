@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from ..models import get_db, Project
@@ -78,4 +78,33 @@ def delete_file(project_id: int, file_path: str, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="File not found")
     return {"message": "File deleted successfully"}
+
+
+@router.post("/project/{project_id}/rename")
+def rename_file(project_id: int, old_path: str, new_path: str, db: Session = Depends(get_db)):
+    """Rename a file or directory"""
+    project = get_project_by_id(db, project_id)
+    success = file_manager.rename_file(project.name, old_path, new_path)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to rename file or file not found")
+    return {"message": "File renamed successfully"}
+
+
+@router.post("/project/{project_id}/upload")
+async def upload_file(
+    project_id: int,
+    file_path: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Upload a file"""
+    project = get_project_by_id(db, project_id)
+    try:
+        file_content = await file.read()
+        success = file_manager.upload_file(project.name, file_path, file_content)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to upload file")
+        return {"message": "File uploaded successfully", "filename": file.filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 

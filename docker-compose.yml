@@ -6,6 +6,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: snappods-backend
+    user: root
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./projects:/app/projects
@@ -15,6 +16,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./data/snappods.db
       - DOCKER_SOCKET=/var/run/docker.sock
+      - DOCKER_HOST=unix:///var/run/docker.sock
     restart: always
     networks:
       - snappods-network
@@ -35,4 +37,3 @@ services:
 networks:
   snappods-network:
     driver: bridge
-

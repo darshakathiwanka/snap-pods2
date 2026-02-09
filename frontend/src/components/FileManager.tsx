@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { filesApi, FileTreeItem, containersApi } from '../services/api';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -15,8 +15,15 @@ const FileManager = ({ projectId }: FileManagerProps) => {
   const [fileContent, setFileContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
   const [newFileName, setNewFileName] = useState('');
+  const [renameOldPath, setRenameOldPath] = useState('');
+  const [renameNewName, setRenameNewName] = useState('');
   const [isDirectory, setIsDirectory] = useState(false);
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  const [createInPath, setCreateInPath] = useState<string>('');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,9 +39,19 @@ const FileManager = ({ projectId }: FileManagerProps) => {
     }
   };
 
+  const toggleDirectory = (path: string) => {
+    const newExpanded = new Set(expandedDirs);
+    if (newExpanded.has(path)) {
+      newExpanded.delete(path);
+    } else {
+      newExpanded.add(path);
+    }
+    setExpandedDirs(newExpanded);
+  };
+
   const handleFileSelect = async (filePath: string, isDir: boolean) => {
     if (isDir) {
-      // Toggle directory expansion (simplified - could be improved)
+      toggleDirectory(filePath);
       return;
     }
     setSelectedFile(filePath);
@@ -61,21 +78,48 @@ const FileManager = ({ projectId }: FileManagerProps) => {
 
   const handleCreate = async () => {
     if (!newFileName.trim()) return;
+    const fullPath = createInPath ? `${createInPath}/${newFileName}` : newFileName;
     try {
       if (isDirectory) {
-        await filesApi.mkdir(projectId, newFileName);
+        await filesApi.mkdir(projectId, fullPath);
       } else {
-        await filesApi.create(projectId, newFileName, '');
+        await filesApi.create(projectId, fullPath, '');
       }
       setNewFileName('');
       setIsDirectory(false);
+      setCreateInPath('');
       setShowCreateModal(false);
       loadFiles();
       if (!isDirectory) {
-        handleFileSelect(newFileName, false);
+        handleFileSelect(fullPath, false);
+      }
+      // Expand parent directory if creating inside a folder
+      if (createInPath) {
+        setExpandedDirs(new Set([...expandedDirs, createInPath]));
       }
     } catch (error) {
       alert('Failed to create file/directory');
+    }
+  };
+
+  const handleRename = async () => {
+    if (!renameNewName.trim()) return;
+    const pathParts = renameOldPath.split('/');
+    pathParts[pathParts.length - 1] = renameNewName;
+    const newPath = pathParts.join('/');
+    
+    try {
+      await filesApi.rename(projectId, renameOldPath, newPath);
+      setShowRenameModal(false);
+      setRenameOldPath('');
+      setRenameNewName('');
+      loadFiles();
+      if (selectedFile === renameOldPath) {
+        setSelectedFile(newPath);
+        handleFileSelect(newPath, false);
+      }
+    } catch (error) {
+      alert('Failed to rename file/directory');
     }
   };
 
@@ -104,34 +148,125 @@ const FileManager = ({ projectId }: FileManagerProps) => {
     }
   };
 
-  const renderFileTree = (items: FileTreeItem[], level: number = 0) => {
-    return items.map((item) => (
-      <div key={item.path} style={{ paddingLeft: `${level * 20}px` }}>
-        <div
-          className={`file-item ${selectedFile === item.path ? 'selected' : ''}`}
-          onClick={() => handleFileSelect(item.path, item.is_directory)}
-        >
-          <span className="file-icon">
-            {item.is_directory ? '📁' : '📄'}
-          </span>
-          <span className="file-name">{item.name}</span>
-          <button
-            className="delete-file-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(item.path);
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetPath: string = '') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    for (const file of droppedFiles) {
+      const filePath = targetPath ? `${targetPath}/${file.name}` : file.name;
+      try {
+        const fileContent = await file.arrayBuffer();
+        await filesApi.upload(projectId, filePath, new File([fileContent], file.name));
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        alert(`Failed to upload ${file.name}`);
+      }
+    }
+    loadFiles();
+  };
+
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles) return;
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const filePath = createInPath ? `${createInPath}/${file.name}` : file.name;
+      try {
+        await filesApi.upload(projectId, filePath, file);
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        alert(`Failed to upload ${file.name}`);
+      }
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setCreateInPath('');
+    loadFiles();
+  };
+
+  const renderFileTree = (items: FileTreeItem[], level: number = 0, parentPath: string = '') => {
+    return items.map((item) => {
+      const isExpanded = expandedDirs.has(item.path);
+      const hasChildren = item.children && item.children.length > 0;
+      
+      return (
+        <div key={item.path}>
+          <div
+            className={`file-item ${selectedFile === item.path ? 'selected' : ''} ${isDragging ? 'drag-over' : ''}`}
+            onClick={() => handleFileSelect(item.path, item.is_directory)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (item.is_directory) {
+                setCreateInPath(item.path);
+                setShowCreateModal(true);
+              } else {
+                setRenameOldPath(item.path);
+                setRenameNewName(item.name);
+                setShowRenameModal(true);
+              }
             }}
+            onDragOver={item.is_directory ? handleDragOver : undefined}
+            onDragLeave={item.is_directory ? handleDragLeave : undefined}
+            onDrop={item.is_directory ? (e) => handleDrop(e, item.path) : undefined}
           >
-            ×
-          </button>
-        </div>
-        {item.children && item.children.length > 0 && (
-          <div className="file-children">
-            {renderFileTree(item.children, level + 1)}
+            <span className="file-icon" onClick={(e) => {
+              e.stopPropagation();
+              if (item.is_directory) {
+                toggleDirectory(item.path);
+              }
+            }}>
+              {item.is_directory ? (isExpanded ? '📂' : '📁') : '📄'}
+            </span>
+            <span className="file-name">{item.name}</span>
+            <div className="file-actions">
+              <button
+                className="rename-file-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameOldPath(item.path);
+                  setRenameNewName(item.name);
+                  setShowRenameModal(true);
+                }}
+                title="Rename"
+              >
+                ✏️
+              </button>
+              <button
+                className="delete-file-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(item.path);
+                }}
+                title="Delete"
+              >
+                ×
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    ));
+          {item.is_directory && isExpanded && hasChildren && (
+            <div className="file-children">
+              {renderFileTree(item.children!, level + 1, item.path)}
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
   const getLanguage = (filename: string) => {
@@ -164,18 +299,41 @@ const FileManager = ({ projectId }: FileManagerProps) => {
           </button>
           <button
             className="create-btn"
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setCreateInPath('');
+              setShowCreateModal(true);
+            }}
           >
             + New File/Folder
           </button>
+          <button
+            className="upload-btn"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            📤 Upload Files
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFileInput}
+          />
         </div>
       </div>
       <div className="file-manager-content">
         <div className="file-tree">
           <div className="file-tree-header">Files</div>
-          <div className="file-tree-content">
+          <div
+            className={`file-tree-content ${isDragging ? 'drag-over' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, '')}
+          >
             {files.length === 0 ? (
-              <div className="empty-files">No files yet. Create a file to get started.</div>
+              <div className="empty-files">
+                No files yet. Create a file or drag & drop files here.
+              </div>
             ) : (
               renderFileTree(files)
             )}
@@ -211,7 +369,9 @@ const FileManager = ({ projectId }: FileManagerProps) => {
               )}
             </>
           ) : (
-            <div className="no-file-selected">Select a file to edit</div>
+            <div className="no-file-selected">
+              Select a file to edit or create a new one
+            </div>
           )}
         </div>
       </div>
@@ -219,7 +379,7 @@ const FileManager = ({ projectId }: FileManagerProps) => {
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Create New</h3>
+            <h3>Create New {createInPath && `in ${createInPath}`}</h3>
             <label>
               <input
                 type="checkbox"
@@ -238,7 +398,29 @@ const FileManager = ({ projectId }: FileManagerProps) => {
             />
             <div className="modal-actions">
               <button onClick={handleCreate}>Create</button>
-              <button onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button onClick={() => {
+                setShowCreateModal(false);
+                setCreateInPath('');
+              }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRenameModal && (
+        <div className="modal-overlay" onClick={() => setShowRenameModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Rename</h3>
+            <input
+              type="text"
+              value={renameNewName}
+              onChange={(e) => setRenameNewName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleRename()}
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button onClick={handleRename}>Rename</button>
+              <button onClick={() => setShowRenameModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -248,4 +430,3 @@ const FileManager = ({ projectId }: FileManagerProps) => {
 };
 
 export default FileManager;
-
