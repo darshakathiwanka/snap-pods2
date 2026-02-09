@@ -1,0 +1,129 @@
+.container-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.container-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.container-header {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.container-header:hover {
+  background-color: #f8f9fa;
+}
+
+.container-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.container-info h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.container-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.action-btn:not(.stop-btn):not(.start-btn) {
+  background-color: #3498db;
+  color: white;
+}
+
+.action-btn:not(.stop-btn):not(.start-btn):hover {
+  background-color: #2980b9;
+}
+
+.stop-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.stop-btn:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.stop-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.start-btn {
+  background-color: #27ae60;
+  color: white;
+}
+
+.start-btn:hover {
+  background-color: #229954;
+}
+
+.container-details {
+  padding: 16px;
+  border-top: 1px solid #ecf0f1;
+  background-color: #f8f9fa;
+}
+
+.detail-row {
+  margin-bottom: 8px;
+  color: #34495e;
+}
+
+.detail-row strong {
+  margin-right: 8px;
+}
+
+.port-info {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #ecf0f1;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.stats-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #ddd;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #95a5a6;
+}
+

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: snappods-backend
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./projects:/app/projects
+      - ./data:/app/data
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=sqlite:///./data/snappods.db
+      - DOCKER_SOCKET=/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - snappods-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: snappods-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - snappods-network
+
+networks:
+  snappods-network:
+    driver: bridge
+
+volumes:
+  projects:
+  data:
+
