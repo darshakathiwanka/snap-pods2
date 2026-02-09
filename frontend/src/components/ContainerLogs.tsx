@@ -12,7 +12,7 @@ const ContainerLogs = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [follow, setFollow] = useState(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,18 +29,18 @@ const ContainerLogs = () => {
   useEffect(() => {
     if (autoRefresh && follow && containerId) {
       // Auto-refresh every 2 seconds when following logs
-      intervalRef.current = setInterval(() => {
+      intervalRef.current = window.setInterval(() => {
         loadLogs();
       }, 2000);
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     }
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
       }
     };
   }, [autoRefresh, follow, containerId]);

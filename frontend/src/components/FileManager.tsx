@@ -200,7 +200,7 @@ const FileManager = ({ projectId }: FileManagerProps) => {
     loadFiles();
   };
 
-  const renderFileTree = (items: FileTreeItem[], level: number = 0, parentPath: string = '') => {
+  const renderFileTree = (items: FileTreeItem[], level: number = 0) => {
     return items.map((item) => {
       const isExpanded = expandedDirs.has(item.path);
       const hasChildren = item.children && item.children.length > 0;
@@ -261,7 +261,7 @@ const FileManager = ({ projectId }: FileManagerProps) => {
           </div>
           {item.is_directory && isExpanded && hasChildren && (
             <div className="file-children">
-              {renderFileTree(item.children!, level + 1, item.path)}
+              {renderFileTree(item.children!, level + 1)}
             </div>
           )}
         </div>
