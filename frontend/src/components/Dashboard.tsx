@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { containersApi, ContainerInfo } from '../services/api';
 import ContainerList from './ContainerList';
 import './Dashboard.css';
@@ -8,7 +7,6 @@ const Dashboard = () => {
   const [containers, setContainers] = useState<ContainerInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     loadContainers();

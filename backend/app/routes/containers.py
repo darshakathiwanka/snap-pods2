@@ -74,8 +74,12 @@ def deploy_container(deploy_request: DeployRequest, db: Session = Depends(get_db
     
     try:
         # Run docker-compose up -d
+        # Use shell=True for better compatibility with older docker-compose versions (RHEL 7)
+        # For older docker-compose, we change to the directory and run from there
+        cmd = f"cd {project_path} && docker-compose -f docker-compose.yml up -d"
         result = subprocess.run(
-            ["docker-compose", "-f", compose_file, "up", "-d"],
+            cmd,
+            shell=True,
             cwd=project_path,
             capture_output=True,
             text=True,

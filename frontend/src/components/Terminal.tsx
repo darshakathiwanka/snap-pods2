@@ -43,7 +43,7 @@ const Terminal = () => {
       xterm.write(data);
     });
 
-    ws.onError((error) => {
+    ws.onError(() => {
       xterm.writeln('\r\n\x1b[31mConnection error. Please check if container is running.\x1b[0m');
     });
 
